@@ -4,6 +4,10 @@ import random
 import matplotlib.pyplot as plot
 import math
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# 
+# Operators and test sequences
+#
 laplasian = [1, -2, 1, -2, 4, -2, 1, -2, 1]
 laplasian_2 = [-1, -1, -1, -1, 8, -1, -1, -1, -1]
 laplasian_3 = [0. -1, 0, -1, 4, -1, 0, -1, 0]
@@ -11,24 +15,14 @@ block_noisy = [0, 255]*32
 block_smooth = [100, 120, 130, 140, 150, 160, 170, 180]*8
 block_simple = [250]*64
 block_random = [random.randint(0, 255) for i in range(64)]
+#
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-def noise_block_eval(blc, filt, h, w):
-    result = 0
-    j = 1
-    while (j < (h-1)):
-        i = 1
-        while (i < (w-1)):
-            tmp = 0
-            for k,el in enumerate(filt):
-                x = int((k%3) - 1)
-                y = int((k/3) - 1)
-                tmp += el * blc[(i+x) + (j+y)*w]
-            result += abs(tmp)
-            i += 1
-        j += 1
-    return (math.sqrt(math.pi/2))*result/(6*(w-2)*(h-2))
-                
-
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# 
+# Classic blockiness detection algorithm implementation
+#
 def old_alg(x):
     Shb = .0
     Shnb = .0
@@ -49,6 +43,22 @@ def old_alg(x):
             Shb += (1.0*sub)/sumn
         i += 4
     return Shb/Shnb
+#
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# 
+# Plain new blockiness detection algorithm implementation
+# 
+# Based on comparison of the average luminence values and noises of
+# the blocks
+#
+def different_p(noise, lum):
+    if lum > 4 and noise > 0.90:
+        return True
+    else:
+        return False
 
 def block_blob_alg(pic, width, height):
     w_blocks = int(width / 8)
@@ -111,18 +121,80 @@ def block_blob_alg(pic, width, height):
             #result[b_index] = coef_lum
     #print(list(filter(lambda x: x >= 0.9, block_matrix)))
     #print(tmp_result)
-    return (noise_result, lum_result, w_blocks, h_blocks)
+    result = list(map(lambda x, y: different_p(x, y), noise_result, lum_result))
+    return (result, w_blocks, h_blocks)
+#
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-def different_p(noise, lum):
-    if lum > 4 and noise > 0.90:
-        return True
-    else:
-        return False
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# 
+# Another new blockiness detection algorithm implementation
+# 
+# Based on comparison of the border luminence values and noises of
+# the blocks
+#
+def border_diff_alg(pic, width, height):
+    w_blocks = int(width / 8)
+    h_blocks = math.ceil(height / 8)
+    length = len(pic)
+    # noise, right_diff, down_diff
+    block_matrix = [[0.0, 0.0, 0.0] for x in range(w_blocks*h_blocks)]
+    # vc - luma difference visibility threshold
+    # b - black, g - grey, w - white
+    bvc = 6
+    gvc = 4
+    wvc = bvc
+    wl = 200
+    bl = 50
+
+    for y in range(height-2):
+        for x in range(width-2):
+            b_index = int(x / 8) + int(y / 8)*w_blocks
+            cur = int(pic[x + y*width])
+            if ((x+1) % 8 != 0) and ((y+1) % 8 != 0):
+                right = int(pic[(x+1) + y*width])
+                down = int(pic[x + (y+1)*width])
+                if (cur < wl) or (cur > bl):
+                    diff = bvc
+                else:
+                    diff = gvc
+                if (abs(cur - right) >= diff):
+                    block_matrix[b_index][0] += 1
+                if (abs(cur - down) >= diff):
+                    block_matrix[b_index][0] += 1
+            else:
+                right_diff = 0.0
+                down_diff = 0.0
+                right = int(pic[(x+1) + y*width])
+                down = int(pic[x + (y+1)*width])
+                if ((x+1) % 8 == 0):
+                    right_diff = abs(right - cur)
+                if ((y+1) % 8 == 0):
+                    down_diff = abs(down - cur)
+                block_matrix[b_index][1] += right_diff
+                block_matrix[b_index][2] += down_diff
+    # normalising matrix
+    block_matrix = list(map(lambda lst: [1.0 - (lst[0] / (7.0*8.0*2.0)),
+                                         lst[1]/8.0,
+                                         lst[2]/8.0],
+                            block_matrix))
+    return (block_matrix, w_blocks, h_blocks)
+    #print(block_matrix)
     
+#
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
 #file_names = ["lena.tif", "5.jpg", "baby.JPG.bmp"]
-file_names = ["0.jpg", "1.jpg", "2.jpg", "3.jpg", "9.jpg"]
+#file_names = ["0.jpg", "1.jpg", "2.jpg", "3.jpg", "9.jpg"]
 #file_names = ["9.jpg"]
-#file_names = ["0.jpg", "baby.JPG.bmp", "lena.tif"]
+#file_names = ["0.jpg", "baby.JPG.bmp", "lena.tif", "5.jpg", "b1.bmp", "9.jpg"]
+file_names = ["mri.tif", "einstein.tif", "lena.tif"]
+#file_names = ["lena.tif"]
+#file_names = ["b1.bmp"]
+
 def main(pics):
     for pic in pics:
         print(pic)
@@ -136,15 +208,16 @@ def main(pics):
         print(height, width)
         print(result_old)
 
-        result, lum, wb, hb = block_blob_alg(Y, width, height)
-        print(lum[32*wb:33*wb])
-        print(result[32*wb:33*wb])
+        #result, wb, hb = block_blob_alg(Y, width, height)
+        result, wb, hb = border_diff_alg(Y, width, height)
         #print(result)
-        i = 0
+        i = 0+wb
         counter = 0
         while i < len(result)-1:
             #print(result[i])
-            if different_p(result[i], lum[i]):
+            borders = [result[i][1], result[i][2], result[i-1][1], result[i - wb][2]]
+            if ((result[i][0] > 0.95 and (len(list(filter(lambda x: x > 4, borders))) >= 2)) or
+                (result[i][0] > 0.50 and (len(list(filter(lambda x: x > 30, borders))) >= 2))):
                 x = int(i % wb)*8
                 y = int(i / wb)*8
                 draw = ImageDraw.Draw(img)
