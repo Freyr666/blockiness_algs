@@ -246,7 +246,7 @@ def main(path, pics):
         surf = ax.plot_surface(x, y, z, rstride=1, cstride=1, cmap=cm.coolwarm, linewidth=0, antialiased=False)
         fig.colorbar(surf, shrink=0.5, aspect=5)
         plot.savefig(str(os.path.join(result_path, pic + "_plot.png")))
-        plot.show()
+        #plot.show()
         
 
         print(pic + "\told_alg: " + str(result_old) + "\tnew_alg: " + str((100.0*counter) / (wb*hb)) + "%")
