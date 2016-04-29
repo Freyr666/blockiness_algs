@@ -1,8 +1,11 @@
+#! /usr/bin/python3
+
 from PIL import Image, ImageDraw
 import numpy as np
 import random
 import matplotlib.pyplot as plot
 import math
+import os, sys
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # 
@@ -191,23 +194,23 @@ def border_diff_alg(pic, width, height):
 #file_names = ["0.jpg", "1.jpg", "2.jpg", "3.jpg", "9.jpg"]
 #file_names = ["9.jpg"]
 #file_names = ["0.jpg", "baby.JPG.bmp", "lena.tif", "5.jpg", "b1.bmp", "9.jpg"]
-file_names = ["mri.tif", "einstein.tif", "lena.tif"]
+#file_names = ["mri.tif", "einstein.tif", "lena.tif"]
 #file_names = ["lena.tif"]
 #file_names = ["b1.bmp"]
 
-def main(pics):
+def main(path, pics):
     for pic in pics:
-        print(pic)
-        img = Image.open(str(pic)).convert("YCbCr")
+        result_path = os.path.join(path, "results")
+        img = Image.open(str(os.path.join(path, pic))).convert("YCbCr")
         arr = np.array(img)
         Y = arr[:,:,0]
         height = len(Y)
         width = len(Y[0])
         Y = np.concatenate(Y)
         result_old = old_alg(Y)
-        print(height, width)
-        print(result_old)
-
+        #print(height, width)
+        #print(result_old)
+    
         #result, wb, hb = block_blob_alg(Y, width, height)
         result, wb, hb = border_diff_alg(Y, width, height)
         #print(result)
@@ -225,8 +228,16 @@ def main(pics):
                 del draw
                 counter += 1
             i += 1
-        img.show()
+        if not (os.path.exists(result_path)):
+            os.mkdir(result_path)
+        img.convert("RGB").save(str(os.path.join(result_path, pic + "_result.bmp")), "BMP")
+        #img.show()
 
-        print("new alg: " + str((100.0*counter) / (wb*hb)) + "%")
+        print(pic + "\told_alg: " + str(result_old) + "\tnew_alg: " + str((100.0*counter) / (wb*hb)) + "%")
 
-main(file_names)
+if __name__ == "__main__":
+    args = sys.argv
+    if (len(args) < 3):
+        print("Usage: " + args[0] + " /path/to/folder picture.ext picture2.ext pictureN.ext")
+        exit(1)
+    main(args[1], args[2:])
