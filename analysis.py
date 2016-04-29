@@ -3,9 +3,6 @@
 from PIL import Image, ImageDraw
 import numpy as np
 import random
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import matplotlib.pyplot as plot
 import math
 import os, sys
@@ -237,18 +234,16 @@ def main(path, pics):
         while i < len(result):
             noise_matrix.append(list(map(lambda x: x[0], result[i:i+wb])))
             i += wb
-        fig = plot.figure()
-        ax = fig.gca(projection='3d')
+        fig = plot.figure(frameon=False)
         x = np.arange(0, wb, 1)
         y = np.arange(0, hb, 1)
         x,y = np.meshgrid(x,y)
         z = np.array(noise_matrix[::-1])
-        surf = ax.plot_surface(x, y, z, rstride=1, cstride=1, cmap=cm.coolwarm, linewidth=0, antialiased=False)
-        fig.colorbar(surf, shrink=0.5, aspect=5)
-        plot.savefig(str(os.path.join(result_path, pic + "_plot.png")))
+        im1 = plot.imshow(z, interpolation='nearest')
+        plot.show()
+        #plot.savefig(str(os.path.join(result_path, pic + "_plot_inverse_noise.png")))
         #plot.show()
         
-
         print(pic + "\told_alg: " + str(result_old) + "\tnew_alg: " + str((100.0*counter) / (wb*hb)) + "%")
 
 if __name__ == "__main__":
