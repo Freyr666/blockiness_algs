@@ -9,6 +9,49 @@ import os, sys
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # 
+# Functions
+#
+def plot_noise(noise, result_path, pic):
+    fig = plot.figure(frameon=False)
+    x = np.arange(0, len(noise[0]), 1)
+    y = np.arange(0, len(noise), 1)
+    x,y = np.meshgrid(x,y)
+    z = np.array(noise)
+    im1 = plot.imshow(z, label='Block noise level')
+    plot.xlabel('width')
+    plot.ylabel('height')
+    plot.colorbar(label='Noise level, %')
+    plot.savefig(str(os.path.join(result_path, pic + "_plot_noise.png")))
+
+def plot_diff(diff, result_path, pic):
+    fig = plot.figure(frameon=False)
+    x = np.arange(0, len(diff[0]), 1)
+    y = np.arange(0, len(diff), 1)
+    x,y = np.meshgrid(x,y)
+    z = np.array(diff)
+    im1 = plot.imshow(z, label='Block borders difference level')
+    plot.xlabel('width')
+    plot.ylabel('height')
+    plot.colorbar(label='Difference level, %')
+    plot.savefig(str(os.path.join(result_path, pic + "_plot_diff.png")))
+
+def grade(N):
+    if N < 5:
+        return 'Excellent'
+    elif N < 15:
+        return 'Good'
+    elif N < 23:
+        return 'Rather_good'
+    elif N < 35:
+        return 'Poor'
+    else:
+        return 'Bad'
+#
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# 
 # Operators and test sequences
 #
 laplasian = [1, -2, 1, -2, 4, -2, 1, -2, 1]
@@ -208,7 +251,7 @@ def main(path, pics):
         width = len(Y[0])
         Y = np.concatenate(Y)
         result_old = old_alg(Y)
-    
+        
         #result, wb, hb = block_blob_alg(Y, width, height)
         result, wb, hb = border_diff_alg(Y, width, height)
         
@@ -231,20 +274,36 @@ def main(path, pics):
         # plotting the result
         i = 0
         noise_matrix = []
-        while i < len(result):
-            noise_matrix.append(list(map(lambda x: x[0], result[i:i+wb])))
-            i += wb
-        fig = plot.figure(frameon=False)
-        x = np.arange(0, wb, 1)
-        y = np.arange(0, hb, 1)
-        x,y = np.meshgrid(x,y)
-        z = np.array(noise_matrix[::-1])
-        im1 = plot.imshow(z, interpolation='nearest')
-        plot.show()
-        #plot.savefig(str(os.path.join(result_path, pic + "_plot_inverse_noise.png")))
-        #plot.show()
+        diff_matrix = []
+        while i < len(result)/wb:
+            j = 0
+            tmp_noise = []
+            tmp_diff = []
+            while j < wb:
+                up_diff = 0
+                down_diff = result[i*wb + j][2]
+                left_diff = 0
+                right_diff = result[i*wb + j][1]
+                if i > 1:
+                    up_diff = result[(i-1)*wb + j][2]
+                if j > 1:
+                    left_diff = result[i*wb + j - 1][1]
+                borders = [up_diff, down_diff, left_diff, right_diff]
+                tmp_noise.append((1.0 - result[i*wb + j][0])*100)
+                tmp_diff.append(sum(borders))
+                j += 1
+            noise_matrix.append(tmp_noise)
+            diff_matrix.append(tmp_diff)
+            i += 1
+        # noise:
+        plot_noise(noise_matrix, result_path, pic)
+        # difference
+        plot_diff(diff_matrix, result_path, pic)
+
+        percent = (100.0*counter) / ((wb-2)*(hb-2))
         
-        print(pic + "\told_alg: " + str(result_old) + "\tnew_alg: " + str((100.0*counter) / (wb*hb)) + "%")
+        print(pic + "\told_alg: " + str(result_old) + "\tnew_alg: " + str(percent) + "% "+ grade(percent))
+        
 
 if __name__ == "__main__":
     args = sys.argv
