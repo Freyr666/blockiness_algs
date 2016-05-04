@@ -1,11 +1,23 @@
 #! /usr/bin/python3
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import random
 import matplotlib.pyplot as plot
 import math
 import os, sys
+
+# CONSTANTS
+WH_LVL = 200
+BL_LVL = 50
+
+WH_DIFF = 4
+GR_DIFF = 2
+NOISY_DIFF = 20
+NOISE_LVL = 0.9
+NOISE_LVL2 = 0.3
+L_DIFF = 5/8.
+H_DIFF = 8/8.
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # 
@@ -36,14 +48,10 @@ def plot_diff(diff, result_path, pic):
     plot.savefig(str(os.path.join(result_path, pic + "_plot_diff.png")))
 
 def grade(N):
-    if N < 5:
+    if N < 3:
         return 'Excellent'
-    elif N < 10:
-        return 'Good'
-    elif N < 23:
-        return 'Rather_good'
-    elif N < 35:
-        return 'Poor'
+    elif N < 20:
+        return 'Acceptable'
     else:
         return 'Bad'
 #
@@ -114,11 +122,6 @@ def block_blob_alg(pic, width, height):
     block_avg_lum = [0.0] * w_blocks*h_blocks
     noise_result = [0.0] * w_blocks*h_blocks
     lum_result = [0.0] * w_blocks*h_blocks
-    # vc - luma difference visibility threshold
-    # b - black, g - grey, w - white
-    bvc = 4
-    gvc = 6
-    wvc = bvc
 
     wl = 200
     bl = 50
@@ -186,13 +189,6 @@ def border_diff_alg(pic, width, height):
     length = len(pic)
     # noise, right_diff, down_diff, right_diff_high, down_diff_high
     block_matrix = [[0.0, 0.0, 0.0, 0.0, 0.0] for x in range(w_blocks*h_blocks)]
-    # vc - luma difference visibility threshold
-    # b - black, g - grey, w - white
-    bvc = 6
-    gvc = 4
-    wvc = bvc
-    wl = 200
-    bl = 50
 
     for y in range(height-2):
         for x in range(width-2):
@@ -201,10 +197,10 @@ def border_diff_alg(pic, width, height):
             if ((x+1) % 8 != 0) and ((y+1) % 8 != 0):
                 right = int(pic[(x+1) + y*width])
                 down = int(pic[x + (y+1)*width])
-                if (cur < wl) or (cur > bl):
-                    diff = bvc
+                if (cur < WH_LVL) or (cur > BL_LVL):
+                    diff = WH_DIFF
                 else:
-                    diff = gvc
+                    diff = GR_DIFF
                 if (abs(cur - right) >= diff):
                     block_matrix[b_index][0] += 1
                 if (abs(cur - down) >= diff):
@@ -214,17 +210,21 @@ def border_diff_alg(pic, width, height):
                 down_diff = 0.0
                 right = int(pic[(x+1) + y*width])
                 down = int(pic[x + (y+1)*width])
+                if (cur < WH_LVL) or (cur > BL_LVL):
+                    diff = WH_DIFF
+                else:
+                    diff = GR_DIFF
                 if ((x+1) % 8 == 0):
                     right_diff = abs(right - cur)
                 if ((y+1) % 8 == 0):
                     down_diff = abs(down - cur)
-                if right_diff >= 3:
+                if right_diff >= diff:
                     block_matrix[b_index][1] += 1
-                if down_diff >= 3:
+                if down_diff >= diff:
                     block_matrix[b_index][2] += 1
-                if right_diff >= 50:
+                if right_diff >= 45:
                     block_matrix[b_index][3] += 1
-                if down_diff >= 50:
+                if down_diff >= 45:
                     block_matrix[b_index][4] += 1
     # normalising matrix
     block_matrix = list(map(lambda lst: [1.0 - (lst[0] / (7.0*8.0*2.0)),
@@ -263,16 +263,19 @@ def main(path, pics):
         
         #result, wb, hb = block_blob_alg(Y, width, height)
         result, wb, hb = border_diff_alg(Y, width, height)
-        
+
         i = 0+wb
         counter = 0
-        while i < len(result)-1:
+        while i < len(result)-wb:
+            cur_noise = result[i][0]
+            noises = [result[i-1][0], result[i+1][0], result[i-wb][0], result[i+wb][0]]
+            flats = list(map(lambda x: (x > NOISE_LVL) or (cur_noise > NOISE_LVL), noises))
+            noised = list(map(lambda x: (x > NOISE_LVL2) or (cur_noise > NOISE_LVL2), noises))
             borders = [result[i][1], result[i][2], result[i-1][1], result[i - wb][2]]
             borders_high = [result[i][3], result[i][4], result[i-1][3], result[i - wb][4]]
-            if ((result[i][0] > 0.95 and (len(list(filter(lambda x: x >= 5/8., borders))) >= 2)) or
-                (result[i][0] > 0.80 and (len(list(filter(lambda x: x >= 7/8., borders))) >= 2)) or
-                #(result[i][0] > 0.50 and (len(list(filter(lambda x: x >= 6/8., borders_high))) >= 2)) or
-                (result[i][0] > 0.60 and (len(list(filter(lambda x: x >= 6/8., borders_high))) >= 2))):
+            tmp_results = list(zip(flats, noised, borders, borders_high))
+            if len(list(filter(lambda x: (x[0] and (x[2] >= L_DIFF)), tmp_results))) >= 2: #or
+            #if len(list(filter(lambda x: (x[0] and (x[2] >= L_DIFF)) or (x[1] and (x[3] >= H_DIFF)), tmp_results))) >= 2: #or
                 x = int(i % wb)*8
                 y = int(i / wb)*8
                 draw = ImageDraw.Draw(img)
@@ -280,6 +283,15 @@ def main(path, pics):
                 del draw
                 counter += 1
             i += 1
+
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([(0, 0), (170, 16)], fill=(255,128,128), outline=None)
+        fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 12)
+
+        blck_perc = (100.0*counter) / ((wb-2)*(hb-2))
+        text = "visible blocks: " + ('%.2f%%' % blck_perc)
+        draw.text((0, 0), text, font=fnt, fill=(0,128,128))
+        del draw
         if not (os.path.exists(result_path)):
             os.mkdir(result_path)
         img.convert("RGB").save(str(os.path.join(result_path, pic + "_result.bmp")), "BMP")

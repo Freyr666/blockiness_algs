@@ -6,21 +6,12 @@ function get_data(){
 }
 
 function map_value() {
-    if  [ $(echo "$1 >= 0.0" | bc -l) -eq 1 ]  &&  [ $(echo "$1 <= 20.0" | bc -l) -eq 1 ]
+    if  [ $(echo "$1 >= 0.0" | bc -l) -eq 1 ]  &&  [ $(echo "$1 <= 25.0" | bc -l) -eq 1 ]
     then
 	local result="Excellent"
-    elif [ $(echo "$1 > 20.0" | bc -l) -eq 1 ] && [ $(echo "$1 <= 40.0" | bc -l) -eq 1 ]
+    elif [ $(echo "$1 > 25.0" | bc -l) -eq 1 ] && [ $(echo "$1 <= 50.0" | bc -l) -eq 1 ]
     then
-	local result="Good"
-    elif [ $(echo "$1 > 40.0" | bc -l) -eq 1 ] && [ $(echo "$1 <= 60.0" | bc -l) -eq 1 ]
-    then
-	local result="Rather_good"
-    elif [ $(echo "$1 > 60.0" | bc -l) -eq 1 ] && [ $(echo "$1 <= 80.0" | bc -l) -eq 1 ]
-    then
-	local result="Poor"
-    elif [ $(echo "$1 > 80.0" | bc -l) -eq 1 ] && [ $(echo "$1 <= 100.0" | bc -l) -eq 1 ]
-    then
-	local result="Bad"
+	local result="Acceptable"
     else
 	local result="Bad"
     fi
