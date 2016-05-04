@@ -17,7 +17,7 @@ def plot_noise(noise, result_path, pic):
     y = np.arange(0, len(noise), 1)
     x,y = np.meshgrid(x,y)
     z = np.array(noise)
-    im1 = plot.imshow(z, label='Block noise level')
+    im1 = plot.imshow(z, label='Block noise level', interpolation="nearest")
     plot.xlabel('width')
     plot.ylabel('height')
     plot.colorbar(label='Noise level, %')
@@ -29,7 +29,7 @@ def plot_diff(diff, result_path, pic):
     y = np.arange(0, len(diff), 1)
     x,y = np.meshgrid(x,y)
     z = np.array(diff)
-    im1 = plot.imshow(z, label='Block borders difference level')
+    im1 = plot.imshow(z, label='Block borders difference level', interpolation="nearest")
     plot.xlabel('width')
     plot.ylabel('height')
     plot.colorbar(label='Difference level, %')
@@ -38,7 +38,7 @@ def plot_diff(diff, result_path, pic):
 def grade(N):
     if N < 5:
         return 'Excellent'
-    elif N < 15:
+    elif N < 10:
         return 'Good'
     elif N < 23:
         return 'Rather_good'
@@ -184,8 +184,8 @@ def border_diff_alg(pic, width, height):
     w_blocks = int(width / 8)
     h_blocks = math.ceil(height / 8)
     length = len(pic)
-    # noise, right_diff, down_diff
-    block_matrix = [[0.0, 0.0, 0.0] for x in range(w_blocks*h_blocks)]
+    # noise, right_diff, down_diff, right_diff_high, down_diff_high
+    block_matrix = [[0.0, 0.0, 0.0, 0.0, 0.0] for x in range(w_blocks*h_blocks)]
     # vc - luma difference visibility threshold
     # b - black, g - grey, w - white
     bvc = 6
@@ -218,12 +218,20 @@ def border_diff_alg(pic, width, height):
                     right_diff = abs(right - cur)
                 if ((y+1) % 8 == 0):
                     down_diff = abs(down - cur)
-                block_matrix[b_index][1] += right_diff
-                block_matrix[b_index][2] += down_diff
+                if right_diff >= 3:
+                    block_matrix[b_index][1] += 1
+                if down_diff >= 3:
+                    block_matrix[b_index][2] += 1
+                if right_diff >= 50:
+                    block_matrix[b_index][3] += 1
+                if down_diff >= 50:
+                    block_matrix[b_index][4] += 1
     # normalising matrix
     block_matrix = list(map(lambda lst: [1.0 - (lst[0] / (7.0*8.0*2.0)),
                                          lst[1]/8.0,
-                                         lst[2]/8.0],
+                                         lst[2]/8.0,
+                                         lst[3]/8.0,
+                                         lst[4]/8.0],
                             block_matrix))
     return (block_matrix, w_blocks, h_blocks)
     #print(block_matrix)
@@ -245,6 +253,7 @@ def main(path, pics):
     for pic in pics:
         result_path = os.path.join(path, "results")
         img = Image.open(str(os.path.join(path, pic))).convert("YCbCr")
+        img.convert("L").save(str(os.path.join(result_path, pic + "_Y.bmp")), "BMP")
         arr = np.array(img)
         Y = arr[:,:,0]
         height = len(Y)
@@ -259,8 +268,11 @@ def main(path, pics):
         counter = 0
         while i < len(result)-1:
             borders = [result[i][1], result[i][2], result[i-1][1], result[i - wb][2]]
-            if ((result[i][0] > 0.95 and (len(list(filter(lambda x: x > 4, borders))) >= 2)) or
-                (result[i][0] > 0.50 and (len(list(filter(lambda x: x > 30, borders))) >= 2))):
+            borders_high = [result[i][3], result[i][4], result[i-1][3], result[i - wb][4]]
+            if ((result[i][0] > 0.95 and (len(list(filter(lambda x: x >= 5/8., borders))) >= 2)) or
+                (result[i][0] > 0.80 and (len(list(filter(lambda x: x >= 7/8., borders))) >= 2)) or
+                #(result[i][0] > 0.50 and (len(list(filter(lambda x: x >= 6/8., borders_high))) >= 2)) or
+                (result[i][0] > 0.60 and (len(list(filter(lambda x: x >= 6/8., borders_high))) >= 2))):
                 x = int(i % wb)*8
                 y = int(i / wb)*8
                 draw = ImageDraw.Draw(img)
